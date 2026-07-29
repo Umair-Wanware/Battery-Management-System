@@ -1,10 +1,11 @@
 #include "bootloader.hpp"
 #include "memory_map.hpp"
+#include "firmware_manager.hpp"
 
 typedef void (*ApplicationEntry)(void);
 
 void Bootloader::Run(){
-    if(isApplicationValid()){
+    if(isApplicationValid() && FirmwareManager::isValid() && FirmwareManager::VerifyCRC()){
         JumpToApplication();
     }
 
@@ -42,6 +43,9 @@ void Bootloader::JumpToApplication(){
     }
 
     SCB->VTOR = MemoryMap::APP_START;
+
+    __DSB();
+    __ISB();
 
     __set_MSP(appStack);
 
