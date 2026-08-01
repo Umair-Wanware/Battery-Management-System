@@ -12,9 +12,6 @@ class Bootloader {
     private:
     bool isApplicationValid() const;
     void JumpToApplication();
-
-    BootState state;
-
     void CheckApplication();
     void WaitForUpdate();
     void ReceiveHeader();

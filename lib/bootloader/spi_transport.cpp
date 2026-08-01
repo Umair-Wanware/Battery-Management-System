@@ -1,7 +1,11 @@
 #include "spi_transport.hpp"
 #include "stm32f1xx_hal.h"
 
-extern SPI_HandleTypeDef hspi;
+extern "C" {
+    #include "spi/spi_drivers.h"
+}
+
+SPI_HandleTypeDef hspi;
 
 bool SPITransport::Initialize(){
     return HAL_SPI_Init(&hspi) == HAL_OK;

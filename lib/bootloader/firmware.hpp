@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+#include "memory_map.hpp"
+
 struct FirmwareHeader {
     uint32_t magic, version, imageSize, crc32;
 };
