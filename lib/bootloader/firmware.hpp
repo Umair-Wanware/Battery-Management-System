@@ -7,6 +7,6 @@ struct FirmwareHeader {
 };
 
 namespace Firmware {
-    constexpr uint32_t MAGIC = 0x424D5331;
-    constexpr uint32_t HEADER_ADDRESS = 0x8004000UL;
+    constexpr uint32_t MAGIC = 0x424D5331UL;
+    constexpr uint32_t HEADER_ADDRESS = MemoryMap::APP_START;
 }
