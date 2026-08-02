@@ -5,6 +5,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
+#include "timers.h"
 
 #include "adc/adc_drivers.h"
 #include "i2c/i2c_drivers.h"
@@ -12,16 +13,12 @@
 #include "spi/spi_drivers.h"
 #include "ssd1306/ssd1306.h"
 #include "ssd1306/ssd1306_fonts.h"
+#include "algorithms.hpp"
+#include "sensor_packet.hpp"
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-
-struct SensorPacket {
-    float voltage, temperature, current;
-    uint16_t header, crc;
-    uint8_t fault, soc;
-};
 
 volatile uint32_t idleCounter = 0;
 extern "C" {
@@ -43,58 +40,6 @@ extern "C" {
     }
 }
 
-float ADC_TOTemp(uint16_t adc){
-    static constexpr float VREF = 3.3f;
-    static constexpr float ADC_MAX = 4095.0f;
-    float voltage = (adc * VREF) / ADC_MAX;
-    return voltage * 100.0f;
-}
-
-float ADC_TOVolt(uint16_t adc){
-    static constexpr float VREF = 3.3f;;
-    static constexpr float ADC_MAX = 4095.0f;
-    static constexpr float divider = 11.0f;
-    float pinVoltage = (adc * VREF) / ADC_MAX;
-    return pinVoltage * divider;
-}
-
-float ADC_TOCurr(uint16_t adc){
-    static constexpr float VREF = 3.3f;
-    static constexpr float ADC_MAX = 4095.0f;
-    static constexpr float OFFSET = 1.65f;
-    static constexpr float SENSITIVITY = 0.185f;
-    float voltage = (adc * VREF) / ADC_MAX;
-    return (voltage - OFFSET) / SENSITIVITY;
-}
-
-uint8_t calculateSoc(float voltage){
-    if(voltage >= 12.60f) return 100;
-    if(voltage <= 10.80f) return 0;
-    return static_cast<uint8_t>(((voltage - 10.8f) / (12.6 - 10.8f)) * 100.0f);
-}
-
-uint8_t checkFault(const SensorPacket& packet){
-    if(packet.temperature > 60.0f) return 1;
-    if(packet.voltage > 14.4f) return 2;
-    if(packet.current > 5.0f) return 3;
-    return 0;
-}
-
-uint16_t CRC16(const uint8_t *data, uint16_t length){
-    uint16_t crc = 0xFFFF;
-    while(length--){
-        crc ^= *data++;
-        for(uint8_t i = 0; i < 8; i++){
-            if(crc & 0x0001){
-                crc = (crc >> 1) ^ 0xA001;
-            } else {
-                crc >>= 1;
-            }
-        }
-    }
-    return crc;
-}
-
 class SensorTask {
     public:
     SensorTask(QueueHandle_t sQ, QueueHandle_t dQ) : sensorQueue(sQ), displayQueue(dQ) {}
@@ -110,6 +55,7 @@ class SensorTask {
     
     void Run(){
         SensorPacket packet;
+        Algorithms algorithms;
 
         while(true){
             uint16_t rawTemp = ADC_Read(ADC_CHANNEL_0);
@@ -117,16 +63,13 @@ class SensorTask {
             uint16_t rawCurr = ADC_Read(ADC_CHANNEL_2);
 
             packet.header = 0x55AA;
+            packet.temperature = algorithms.ADC_ToTemp(rawTemp);
+            packet.voltage = algorithms.ADC_ToVolt(rawVolt);
+            packet.current = algorithms.ADC_ToCurr(rawCurr);
+            packet.soc = algorithms.calculateSOC(packet.voltage);
+            packet.fault = algorithms.checkFault(packet);
+            packet.crc = algorithms.calculateCRC16(reinterpret_cast<uint8_t*>(&packet), sizeof(packet) - sizeof(packet.crc));
 
-            packet.temperature = ADC_TOTemp(rawTemp);
-            packet.voltage = ADC_TOVolt(rawVolt);
-            packet.current = ADC_TOCurr(rawCurr);
-
-            packet.soc = calculateSoc(packet.voltage);
-            packet.fault = checkFault(packet);
-
-            packet.crc = CRC16(reinterpret_cast<uint8_t*>(&packet), sizeof(packet) - sizeof(packet.crc));
-            
             xQueueOverwrite(sensorQueue, &packet);
             xQueueOverwrite(displayQueue, &packet);
             vTaskDelay(pdMS_TO_TICKS(1000));
@@ -212,7 +155,7 @@ void App_Init(){
     static QueueHandle_t sensorQueue = xQueueCreate(1, sizeof(SensorPacket));
     static QueueHandle_t displayQueue = xQueueCreate(1, sizeof(SensorPacket));
     if(sensorQueue == nullptr || displayQueue == nullptr){
-        while(1);
+        while(true);
     }
 
     static SensorTask sensorTask(sensorQueue, displayQueue);
