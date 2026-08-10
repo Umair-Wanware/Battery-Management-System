@@ -50,6 +50,21 @@ void PowerManager::Update(float voltage, float current, float temperature){
     }
 }
 
+const char* PowerManager::toString(){
+    switch(CurrentState){
+        case PowerState::RUN:
+            return "RUN";
+        case PowerState::IDLE:
+            return "IDLE";
+        case PowerState::LOW_POWER:
+            return "LOW";
+        case PowerState::STOP:
+            return "STOP";
+        case PowerState::STANDBY:
+            return "STBY";
+    }
+}
+
 void PowerManager::RunMode(){
     HAL_ResumeTick();
 }

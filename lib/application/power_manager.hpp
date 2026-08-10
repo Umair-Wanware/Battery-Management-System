@@ -1,8 +1,6 @@
 #pragma once
 #include <stdint.h>
 
-extern "C" void HAL_ResumeTick();
-
 enum class PowerState : uint8_t {
     RUN,
     IDLE,
@@ -17,6 +15,7 @@ class PowerManager {
     static void SetState(PowerState state);
     static PowerState GetState();
     static void Update(float voltage, float current, float temperature);
+    static const char* toString();
 
     private:
     static PowerState CurrentState;

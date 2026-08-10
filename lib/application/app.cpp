@@ -16,10 +16,12 @@
 #include "algorithms.hpp"
 #include "sensor_packet.hpp"
 #include "boot_screen.hpp"
+#include "power_manager.hpp"
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 volatile uint32_t idleCounter = 0;
 extern "C" {
@@ -101,6 +103,38 @@ class CommunicationTask {
     }
 };
 
+class PowerTask {
+    public:
+    void Start(){
+        xTaskCreate(task_entry, "POWER", 512, this, 2, nullptr);
+    }
+
+    private:
+    static void task_entry(void *pvPara){
+        static_cast<PowerTask*>(pvPara)->Run();
+    }
+
+    void Run(){
+        while(true){
+            switch(PowerManager::GetState()){
+                case PowerState::RUN:
+                    break;
+                case PowerState::IDLE:
+                    __WFI();
+                    break;
+                case PowerState::LOW_POWER:
+                    HAL_SuspendTick();
+                    HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+                    HAL_ResumeTick();
+                    break;
+                default:
+                    break;
+            }
+            vTaskDelay(pdMS_TO_TICKS(200));
+        }
+    }
+};
+
 class DisplayTask {
     public:
     DisplayTask(QueueHandle_t dQ) : displayQueue(dQ) {}
@@ -122,6 +156,9 @@ class DisplayTask {
             if(xQueuePeek(displayQueue, &packet, portMAX_DELAY) == pdPASS){
                 ssd1306_Fill(Black);
 
+                ssd1306_SetCursor(80, 48);
+                ssd1306_WriteString((char*)PowerManager::toString(), Font_6x8, White);
+
                 snprintf(buffer, sizeof(buffer), "Temp: %.1f C", packet.temperature);
                 ssd1306_SetCursor(0, 0);
                 ssd1306_WriteString(buffer, Font_7x10, White);
@@ -140,7 +177,7 @@ class DisplayTask {
 
                 ssd1306_UpdateScreen();
             }
-            vTaskDelay(pdMS_TO_TICKS(200));
+            vTaskDelay(pdMS_TO_TICKS(1000));
         }
     }
 };
@@ -150,8 +187,8 @@ void App_Init(){
     SPI_Init();
     ADC_Init();
     I2C_Init();
-
     ssd1306_Init();
+    PowerManager::Init();
     
     BootScreen::Version();
     HAL_Delay(500);
