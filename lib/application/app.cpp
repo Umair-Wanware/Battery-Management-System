@@ -15,6 +15,7 @@
 #include "ssd1306/ssd1306_fonts.h"
 #include "algorithms.hpp"
 #include "sensor_packet.hpp"
+#include "boot_screen.hpp"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -151,6 +152,13 @@ void App_Init(){
     I2C_Init();
 
     ssd1306_Init();
+    
+    BootScreen::Version();
+    HAL_Delay(500);
+    BootScreen::Init();
+    HAL_Delay(500);
+    BootScreen::Ready();
+    HAL_Delay(1000);
 
     static QueueHandle_t sensorQueue = xQueueCreate(1, sizeof(SensorPacket));
     static QueueHandle_t displayQueue = xQueueCreate(1, sizeof(SensorPacket));
