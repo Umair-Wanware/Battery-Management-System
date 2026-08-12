@@ -41,10 +41,14 @@ float Algorithms::ADC_ToVolt(uint16_t adc){
     return pinVoltage * divider;
 }
 
-uint8_t Algorithms::calculateSOC(float voltage){
-    if(voltage >= 12.60f) return 100;
-    if(voltage <= 10.80f) return 0;
-    return static_cast<uint8_t>(((voltage - 10.8f) / (12.6 - 10.8f)) * 100.0f);
+uint8_t Algorithms::calculateSOC(float current, float dt){
+    float deltaSoc = (EFFICIENCY * current * dt) / (3600.0f * RATED_CAPACITY) * 100.0f;
+    soc -= deltaSoc;
+
+    if(soc > 100.0f) soc = 100.0f;
+    if(soc > 00.0f) soc = 0.0f;
+
+    return soc;
 }
 
 uint8_t Algorithms::checkFault(const SensorPacket& packet){

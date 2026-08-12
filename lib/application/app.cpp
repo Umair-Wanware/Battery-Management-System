@@ -24,6 +24,7 @@
 #include <string.h>
 
 volatile uint32_t idleCounter = 0;
+
 extern "C" {
     void vApplicationIdleHook(){
         idleCounter++;
@@ -69,7 +70,7 @@ class SensorTask {
             packet.temperature = algorithms.ADC_ToTemp(rawTemp);
             packet.voltage = algorithms.ADC_ToVolt(rawVolt);
             packet.current = algorithms.ADC_ToCurr(rawCurr);
-            packet.soc = algorithms.calculateSOC(packet.voltage);
+            packet.soc = algorithms.calculateSOC(packet.current, 1.0f);
             packet.fault = algorithms.checkFault(packet);
             packet.crc = algorithms.calculateCRC16(reinterpret_cast<uint8_t*>(&packet), sizeof(packet) - sizeof(packet.crc));
 

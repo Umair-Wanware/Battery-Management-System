@@ -7,8 +7,13 @@ class Algorithms {
     public:
     uint16_t calculateCRC16(const uint8_t* data, uint16_t length);
     uint8_t checkFault(const SensorPacket& packet);
-    uint8_t calculateSOC(float voltage);
+    uint8_t calculateSOC(float current, float dt);
     float ADC_ToCurr(uint16_t adc);
     float ADC_ToVolt(uint16_t adc);
     float ADC_ToTemp(uint16_t adc);
+
+    private:
+    float soc = 50.0f;
+    static constexpr float RATED_CAPACITY = 10.0f;
+    static constexpr float EFFICIENCY = 0.95f;
 };
