@@ -62,6 +62,8 @@ const char* PowerManager::toString(){
             return "STOP";
         case PowerState::STANDBY:
             return "STBY";
+        default:
+            return "UKN";
     }
 }
 
